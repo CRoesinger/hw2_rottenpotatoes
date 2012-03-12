@@ -1,9 +1,4 @@
 class MoviesController < ApplicationController
-  
-  def initialize
-    super
-    @all_ratings = Movie.all_ratings
-  end
 
   def show
     id = params[:id] # retrieve movie ID from URI route
@@ -12,12 +7,29 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @sort_by = params[:sort_by]
-    @ratings = params[:ratings]
-    @ratings_ary = @ratings ? @ratings.keys : @all_ratings
-    @movies = Movie.where(:rating => @ratings_ary).order(@sort_by) end
+    # If any of our filters aren't explicitly declared but we have a value in our session, use redirect_to to place the filters in the URL to preserve RESTfulness
+    filters = {:sort => "", :ratings => {}}
+    redirect = false
+    filters.each do |filter, default|
+      if params[filter].blank?
+        if !session[filter].blank?
+          redirect = true
+          params[filter] = session[filter]
+        else
+          params[filter] = default
+        end
+      end
+      session[filter] = params[filter]
+    end
+    redirect_to movies_path(:sort => params[:sort], :ratings => params[:ratings]) if redirect
+
+    @all_ratings = Movie.ratings
+    
+    @movies = Movie.filtered(params)
+  end
 
   def new
+    session.clear
     # default: render 'new' template
   end
 
